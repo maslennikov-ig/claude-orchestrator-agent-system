@@ -1,0 +1,119 @@
+# Package Creation Plan: @megacampus/claude-agents
+
+## Goal
+Create NPM package for easy deployment of Claude Code agent ecosystem to new projects.
+
+## Package Info
+- **Name**: `create-claude-agents` (or `@megacampus/create-claude-agents`)
+- **Version**: 1.0.0
+- **Type**: CLI tool (npx compatible)
+- **Registry**: npm (public or private)
+
+## Installation Method
+
+```bash
+# New project
+npx create-claude-agents
+
+# Existing project
+npx create-claude-agents --merge
+```
+
+## Package Structure
+
+```
+create-claude-agents/
+├── package.json              # Package metadata
+├── README.md                 # Installation guide
+├── LICENSE                   # MIT
+├── bin/
+│   └── cli.js               # Main CLI script
+├── templates/
+│   ├── .claude/
+│   │   ├── agents/          # All 32 agents
+│   │   ├── commands/        # Slash commands
+│   │   └── skills/          # 14 skills
+│   ├── docs/
+│   │   └── Agents Ecosystem/ # 4 docs
+│   ├── .mcp.json            # Minimal MCP config
+│   ├── .mcp.full.json       # Extended MCP config
+│   └── CLAUDE.md            # Project conventions
+└── scripts/
+    └── postinstall.js       # Setup automation
+
+Total size: ~200KB (32 agents + 14 skills + 4 docs)
+```
+
+## CLI Features
+
+### Interactive Setup
+```bash
+npx create-claude-agents
+? Project name: my-project
+? Install location: ./
+? MCP config: minimal/full/both
+? Include docs: yes/no
+✓ Copying agents...
+✓ Setting up MCP...
+✓ Creating CLAUDE.md...
+✓ Done! Run /health-bugs to test
+```
+
+### Options
+```bash
+--dir <path>          # Target directory (default: ./)
+--mcp minimal|full    # MCP config (default: minimal)
+--skip-docs          # Skip documentation
+--merge              # Merge with existing .claude/
+```
+
+## Implementation Steps
+
+1. Create package directory structure
+2. Write CLI script (bin/cli.js)
+3. Copy template files
+4. Create package.json
+5. Write README with examples
+6. Test locally with `npm link`
+7. Publish to npm
+
+## Files to Include
+
+### Critical Files (Required)
+- `.claude/agents/**/*.md` (32 agents)
+- `.claude/skills/**/*.md` (14 skills)
+- `.claude/commands/*.md` (7 commands)
+- `CLAUDE.md` (conventions)
+- `.mcp.json` (minimal config)
+- `.mcp.full.json` (extended config)
+
+### Documentation (Optional)
+- `docs/Agents Ecosystem/ARCHITECTURE.md`
+- `docs/Agents Ecosystem/AI-AGENT-ECOSYSTEM-README.md`
+- `docs/Agents Ecosystem/QUALITY-GATES-SPECIFICATION.md`
+- `docs/Agents Ecosystem/REPORT-TEMPLATE-STANDARD.md`
+
+### Generated (By installer)
+- `.tmp/` structure
+- `README.md` (project-specific)
+
+## Alternative: Git Template
+
+If not using npm, create GitHub template repo:
+
+```bash
+# User runs
+npx degit megacampus/claude-agents my-project/.claude
+```
+
+Simpler but no version management.
+
+## Recommendation
+
+Start with **npm package** for professional distribution:
+1. Better versioning (semver)
+2. Easy updates (`npx create-claude-agents@latest`)
+3. Standard ecosystem integration
+4. Can add to existing projects
+
+Ready to implement?

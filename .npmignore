@@ -1,0 +1,6 @@
+.git
+.gitignore
+.tmp
+test-install
+*.log
+node_modules

@@ -1,0 +1,19 @@
+node_modules/
+*.log
+npm-debug.log*
+.DS_Store
+.env
+.env.local
+test-install/
+*.tgz
+
+# Setup and development files
+SETUP-PROMPT.md
+MOVE-INSTRUCTIONS.md
+QUICK-START.md
+README-STANDALONE.md
+checklist.md
+package.json.bak
+
+# Test output
+.tmp/

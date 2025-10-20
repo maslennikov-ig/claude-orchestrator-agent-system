@@ -1,0 +1,47 @@
+{
+  "name": "create-claude-agents",
+  "version": "1.0.0",
+  "description": "CLI tool to scaffold Claude Code AI agent ecosystem in any project",
+  "type": "module",
+  "bin": {
+    "create-claude-agents": "./bin/cli.js"
+  },
+  "files": [
+    "bin",
+    "templates",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "test": "node bin/cli.js -y --dir .tmp/test --mcp minimal",
+    "prepublishOnly": "npm test"
+  },
+  "keywords": [
+    "claude",
+    "claude-code",
+    "ai-agents",
+    "orchestration",
+    "automation",
+    "bug-fixing",
+    "security-scanning",
+    "code-health"
+  ],
+  "author": "Igor Maslennikov",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/maslennikov-ig/claude-orchestrator-agent-system.git"
+  },
+  "bugs": {
+    "url": "https://github.com/maslennikov-ig/claude-orchestrator-agent-system/issues"
+  },
+  "homepage": "https://github.com/maslennikov-ig/claude-orchestrator-agent-system#readme",
+  "dependencies": {
+    "chalk": "^5.6.2",
+    "commander": "^14.0.1",
+    "inquirer": "^12.10.0"
+  }
+}
