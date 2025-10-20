@@ -1,5 +1,5 @@
 {
-  "name": "@maslennikov-ig/claude-orchestrator-agent-system",
+  "name": "@maslennikovig/claude-orchestrator-agent-system",
   "version": "1.0.0",
   "description": "CLI tool to scaffold Claude Code AI agent ecosystem in any project",
   "type": "module",

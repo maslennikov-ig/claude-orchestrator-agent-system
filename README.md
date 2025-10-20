@@ -6,10 +6,10 @@ Scaffold production-ready AI agent ecosystem for Claude Code.
 
 ```bash
 # Using npx (npm)
-npx @maslennikov-ig/claude-orchestrator-agent-system
+npx @maslennikovig/claude-orchestrator-agent-system
 
 # Using pnpm
-pnpm dlx @maslennikov-ig/claude-orchestrator-agent-system
+pnpm dlx @maslennikovig/claude-orchestrator-agent-system
 ```
 
 ## Features
