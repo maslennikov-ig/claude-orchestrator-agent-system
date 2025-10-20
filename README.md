@@ -5,7 +5,11 @@ Scaffold production-ready AI agent ecosystem for Claude Code.
 ## Quick Start
 
 ```bash
+# Using npx (npm)
 npx create-claude-agents
+
+# Using pnpm
+pnpm dlx create-claude-agents
 ```
 
 ## Features

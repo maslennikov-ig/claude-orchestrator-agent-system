@@ -4,3 +4,10 @@
 test-install
 *.log
 node_modules
+SETUP-PROMPT.md
+MOVE-INSTRUCTIONS.md
+QUICK-START.md
+README-STANDALONE.md
+checklist.md
+package.json.bak
+pnpm-lock.yaml
