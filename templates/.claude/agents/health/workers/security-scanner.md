@@ -46,6 +46,36 @@ mcp__context7__get-library-docs({context7CompatibleLibraryID: "/supabase/supabas
 
 When invoked, you must follow these steps systematically:
 
+### Step 0: Pre-flight Validation
+
+**Context7 Availability Check (CRITICAL)**
+
+Use `validate-context7-availability` Skill:
+```json
+{
+  "worker_name": "security-scanner",
+  "required": true
+}
+```
+
+**Handle result**:
+
+**If `available = true`**:
+- Set internal flag: `context7_available = true`
+- Use Context7 for ALL security pattern validations
+- High confidence in vulnerability findings
+- Mark findings as "✅ Validated via Context7"
+
+**If `available = false`**:
+- Set internal flag: `context7_available = false`
+- Add warning to report header (see Report Structure section)
+- Reduce all confidence scores by 1 level:
+  - `high` → `medium`
+  - `medium` → `low`
+  - `low` → `very-low`
+- Mark all findings as "⚠️ REQUIRES_VERIFICATION - Context7 unavailable"
+- Continue work (don't halt - security scanning still valuable)
+
 ### Phase 0: Read Plan File (if provided)
 
 **If a plan file path is provided in the prompt** (e.g., `.tmp/current/plans/vulnerability-detection.json` or `.tmp/current/plans/vulnerability-verification.json`):
@@ -78,13 +108,63 @@ When invoked, you must follow these steps systematically:
    grep -rn "query.*'SELECT.*\+" --include="*.ts" --include="*.js"
    ```
 
-5. **REQUIRED**: Validate Supabase queries using Context7:
+5. **Context7 Validation** (for EACH potential SQL injection):
+
+   **If `context7_available = true`**:
+
+   Identify the ORM/database library in use (e.g., Prisma, Drizzle, Supabase, raw pg):
+
    ```javascript
+   // Example: Supabase detected
    mcp__context7__resolve-library-id({libraryName: "supabase"})
    mcp__context7__get-library-docs({
      context7CompatibleLibraryID: "/supabase/supabase",
-     topic: "query-security"
+     topic: "parameterized queries security"
    })
+
+   // Example: Prisma detected
+   mcp__context7__resolve-library-id({libraryName: "prisma"})
+   mcp__context7__get-library-docs({
+     context7CompatibleLibraryID: "/prisma/prisma",
+     topic: "SQL injection prevention"
+   })
+   ```
+
+   **Response validation**:
+   - If Context7 confirms vulnerability → Flag as CRITICAL with HIGH confidence
+   - If Context7 shows ORM auto-escapes for this pattern → Skip (false positive avoided)
+   - If Context7 unclear → Flag as HIGH with MEDIUM confidence + manual verification note
+
+   **Report example (validated)**:
+   ```markdown
+   ### Vulnerability: SQL Injection Risk
+
+   **File**: `src/api/users.ts:45`
+   **Severity**: critical
+   **Confidence**: high ✅ (validated via Context7)
+   **Source**: Supabase documentation via Context7
+
+   **Issue**: Raw SQL query with string interpolation detected
+   **Context7 Finding**: Supabase confirms this pattern bypasses parameterization
+   **Recommendation**: Use Supabase query builder or parameterized raw queries
+   ```
+
+   **If `context7_available = false`**:
+
+   Use general SQL injection knowledge:
+
+   **Report example (not validated)**:
+   ```markdown
+   ### Vulnerability: SQL Injection Risk
+
+   **File**: `src/api/users.ts:45`
+   **Severity**: critical
+   **Confidence**: medium ⚠️ (not validated - Context7 unavailable)
+   **Verification Status**: REQUIRES_VERIFICATION
+
+   **Issue**: Raw SQL query with string interpolation detected
+   **Recommendation**: Verify with your ORM/database library documentation
+   **Note**: This finding is based on general SQL injection patterns. Verify if your library version has built-in protections.
    ```
 
 6. Check for parameterized queries best practices
@@ -102,12 +182,71 @@ When invoked, you must follow these steps systematically:
    grep -rn "\[innerHTML\]" --include="*.component.ts"
    ```
 
-8. Verify sanitization for user inputs:
+8. **Context7 Validation** (for EACH potential XSS vulnerability):
+
+   **If `context7_available = true`**:
+
+   Query Context7 for framework-specific XSS prevention practices:
+
+   ```javascript
+   // Example: React detected
+   mcp__context7__resolve-library-id({libraryName: "react"})
+   mcp__context7__get-library-docs({
+     context7CompatibleLibraryID: "/facebook/react",
+     topic: "dangerouslySetInnerHTML XSS prevention best practices"
+   })
+
+   // Example: Vue detected
+   mcp__context7__resolve-library-id({libraryName: "vue"})
+   mcp__context7__get-library-docs({
+     context7CompatibleLibraryID: "/vuejs/vue",
+     topic: "v-html XSS security"
+   })
+   ```
+
+   **Response validation**:
+   - If Context7 confirms XSS risk → Flag as HIGH/CRITICAL with HIGH confidence
+   - If Context7 shows sanitization pattern in use → Verify sanitization library, possibly skip
+   - If Context7 shows valid use case → Check context (trusted source?), flag with note
+
+   **Report example (validated)**:
+   ```markdown
+   ### Vulnerability: XSS Risk via dangerouslySetInnerHTML
+
+   **File**: `src/components/Blog.tsx:23`
+   **Severity**: high
+   **Confidence**: high ✅ (validated via Context7)
+   **Source**: React 18.2.0 documentation via Context7
+
+   **Issue**: Using dangerouslySetInnerHTML without sanitization
+   **Context7 Finding**: React docs confirm XSS risk when rendering user-generated content
+   **Recommendation**: Use DOMPurify to sanitize HTML before rendering, or use React's default escaping
+   ```
+
+   **If `context7_available = false`**:
+
+   Use general XSS knowledge:
+
+   **Report example (not validated)**:
+   ```markdown
+   ### Vulnerability: XSS Risk via dangerouslySetInnerHTML
+
+   **File**: `src/components/Blog.tsx:23`
+   **Severity**: high
+   **Confidence**: medium ⚠️ (not validated - Context7 unavailable)
+   **Verification Status**: REQUIRES_VERIFICATION
+
+   **Issue**: Using dangerouslySetInnerHTML without apparent sanitization
+   **Recommendation**: Verify sanitization is in place or use framework's default escaping
+   **Note**: This finding is based on general XSS patterns. Check if your React version has additional protections.
+   ```
+
+9. Verify sanitization for user inputs:
    - Check if DOMPurify or similar library is used
    - Validate Content Security Policy (CSP) headers
 
 ### Phase 4: Authentication & Authorization Issues
-9. **CRITICAL**: Check authentication patterns:
+10. **CRITICAL**: Check authentication patterns:
    ```bash
    # Hardcoded credentials
    grep -rn "password\s*=\s*['\"]" --include="*.ts" --include="*.js" --include="*.env*"
@@ -119,15 +258,73 @@ When invoked, you must follow these steps systematically:
    grep -rn "verify.*{.*algorithms" --include="*.ts" --include="*.js"
    ```
 
-10. **REQUIRED**: Validate authentication patterns using Context7:
+11. **Context7 Validation** (for EACH authentication/authorization issue):
+
+   **If `context7_available = true`**:
+
+   Query Context7 for authentication best practices based on detected library:
+
    ```javascript
+   // Example: JWT detected
+   mcp__context7__resolve-library-id({libraryName: "jsonwebtoken"})
+   mcp__context7__get-library-docs({
+     context7CompatibleLibraryID: "/auth0/node-jsonwebtoken",
+     topic: "JWT storage security best practices httpOnly cookies"
+   })
+
+   // Example: Supabase auth detected
+   mcp__context7__resolve-library-id({libraryName: "supabase"})
    mcp__context7__get-library-docs({
      context7CompatibleLibraryID: "/supabase/supabase",
-     topic: "authentication"
+     topic: "authentication best practices"
+   })
+
+   // Example: NextAuth detected
+   mcp__context7__resolve-library-id({libraryName: "next-auth"})
+   mcp__context7__get-library-docs({
+     context7CompatibleLibraryID: "/nextauthjs/next-auth",
+     topic: "session security"
    })
    ```
 
-11. Check for missing authorization checks in API routes
+   **Response validation**:
+   - If Context7 confirms security risk → Flag as CRITICAL/HIGH with HIGH confidence
+   - If Context7 shows library handles securely → Verify library configuration, possibly skip
+   - If Context7 shows pattern is acceptable for library version → Check version, possibly skip
+
+   **Report example (validated)**:
+   ```markdown
+   ### Vulnerability: Insecure JWT Storage
+
+   **File**: `src/auth/login.ts:67`
+   **Severity**: high
+   **Confidence**: high ✅ (validated via Context7)
+   **Source**: jsonwebtoken documentation via Context7
+
+   **Issue**: JWT stored in localStorage, vulnerable to XSS attacks
+   **Context7 Finding**: JWT best practices recommend httpOnly cookies for web apps
+   **Recommendation**: Store JWT in httpOnly, secure, SameSite cookies instead of localStorage
+   ```
+
+   **If `context7_available = false`**:
+
+   Use general authentication security knowledge:
+
+   **Report example (not validated)**:
+   ```markdown
+   ### Vulnerability: Insecure JWT Storage
+
+   **File**: `src/auth/login.ts:67`
+   **Severity**: high
+   **Confidence**: medium ⚠️ (not validated - Context7 unavailable)
+   **Verification Status**: REQUIRES_VERIFICATION
+
+   **Issue**: JWT appears to be stored in localStorage
+   **Recommendation**: Verify JWT storage mechanism with your auth library documentation
+   **Note**: This finding is based on general JWT security patterns. Your library version may have additional protections.
+   ```
+
+12. Check for missing authorization checks in API routes
 
 ### Phase 5: RLS Policy Validation (Supabase)
 12. **CRITICAL**: Check Supabase RLS policies:
@@ -327,14 +524,19 @@ Complete `.vulnerability-changes.json` structure:
 ## Best Practices
 
 **Context7 Verification (MANDATORY):**
-- ALWAYS check framework documentation before reporting pattern as vulnerability
-- Verify if "issue" is actually a recommended practice
+- **Pre-flight**: Use `validate-context7-availability` Skill on every invocation
+- **Validation**: ALWAYS query Context7 before flagging security vulnerabilities (if available)
+- **Confidence**: Mark findings with appropriate confidence based on Context7 validation status
+- **False Positives**: Verify if detected "vulnerability" is actually a recommended practice for current library version
+- **Fallback**: If Context7 unavailable, reduce confidence and mark as "REQUIRES_VERIFICATION"
+- **Report Transparency**: Always include Context7 status in report header
 
 **Security Scanning:**
 - Always check for OWASP Top 10 vulnerabilities
 - Look for sensitive data exposure in logs and comments
 - Verify authentication and authorization checks
 - Check for proper input validation and sanitization
+- Use Context7 to validate security patterns against current best practices
 
 **Performance Analysis:**
 - Identify N+1 query problems in database operations
@@ -385,6 +587,8 @@ generated: 2025-10-18T14:30:00Z
 version: 2025-10-18
 status: success
 agent: security-scanner
+context7_status: available | unavailable
+confidence_mode: high | reduced
 duration: 3m 45s
 files_processed: 147
 issues_found: 23
@@ -400,9 +604,42 @@ changes_log: .vulnerability-changes.json (if modifications_made: true)
 
 **Generated**: [Current Date]
 **Project**: [Project Name]
+**Worker**: security-scanner
+**Context7 Status**: ✅ Available | ⚠️ Unavailable
+**Confidence Mode**: High (Context7) | Reduced (No Context7)
 **Files Analyzed**: [Count]
 **Total Issues Found**: [Count]
 **Status**: ✅/⚠️/❌ [Status]
+
+---
+
+[If Context7 unavailable, include this warning section:]
+
+## ⚠️ Context7 Unavailability Notice
+
+Context7 MCP server was not available during security analysis.
+All findings are based on general security knowledge and may not reflect current best practices for your specific library versions.
+
+**Impact**:
+- Confidence scores reduced by 1 level (high → medium, medium → low, low → very-low)
+- All findings marked as "REQUIRES_VERIFICATION"
+- Risk of false positives or outdated security recommendations
+
+**Recommendation**: Install Context7 for accurate security pattern validation:
+
+1. Add to `.mcp.json`:
+   ```json
+   {
+     "mcpServers": {
+       "context7": {
+         "command": "npx",
+         "args": ["-y", "@upstash/context7-mcp@latest"]
+       }
+     }
+   }
+   ```
+2. Restart Claude Code
+3. Re-run security scan for validated findings
 
 ---
 
@@ -415,11 +652,14 @@ changes_log: .vulnerability-changes.json (if modifications_made: true)
 - **Medium Priority Issues**: [Count]
 - **Low Priority Issues**: [Count]
 - **Files Scanned**: [Count]
+- **Context7 Validated**: Yes/No
 - **Modifications Made**: Yes/No
 - **Changes Logged**: Yes/No (if modifications made)
 
 ### Highlights
 - ✅ Scan completed successfully
+- [If Context7 available] ✅ Findings validated via Context7
+- [If Context7 unavailable] ⚠️ Findings NOT validated - Context7 unavailable
 - ❌ Critical issues requiring immediate attention
 - ⚠️ Warnings or partial failures
 - 📝 Modifications logged in .vulnerability-changes.json (if applicable)
