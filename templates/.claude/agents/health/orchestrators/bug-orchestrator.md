@@ -81,6 +81,7 @@ You are a standalone L1 orchestrator for the bug management workflow. Your role 
      "todos": [
        {"content": "Phase 0: Pre-flight validation", "status": "in_progress", "activeForm": "Validating environment"},
        {"content": "Phase 1: Bug detection", "status": "pending", "activeForm": "Detecting bugs"},
+       {"content": "Phase 1.5: Complexity analysis & routing", "status": "pending", "activeForm": "Analyzing bug complexity"},
        {"content": "Phase 2-5: Staged fixing (critical → low)", "status": "pending", "activeForm": "Fixing bugs by priority"},
        {"content": "Phase 6: Verification scan", "status": "pending", "activeForm": "Verifying fixes"},
        {"content": "Phase 7: Iteration decision", "status": "pending", "activeForm": "Evaluating results"},
@@ -274,14 +275,179 @@ You are a standalone L1 orchestrator for the bug management workflow. Your role 
 
    Report: bug-hunting-report.md
 
-   Proceeding to staged fixing...
+   Proceeding to complexity analysis...
    ```
+
+---
+
+### Phase 1.5: Complexity Analysis & Routing
+
+**Purpose**: Calculate complexity scores for each bug and determine optimal routing (research-first vs direct-fix)
+
+**This phase executes AFTER Quality Gate 1 passes.**
+
+1. **Update Progress**
+   Use TodoWrite: Mark Phase 1.5 in_progress
+
+2. **Calculate Complexity Scores**
+
+   For EACH bug in the detection report:
+
+   Use calculate-complexity-score Skill:
+   ```json
+   {
+     "type": "bug",
+     "title": "Bug title from detection report",
+     "context": {
+       "files_affected": (count from bug report),
+       "dependencies_involved": (extract from imports/stack traces),
+       "error_patterns": (from stack traces or error descriptions),
+       "user_description": (from bug description),
+       "stack_trace": (if available)
+     }
+   }
+   ```
+
+   **Extract Context from Bug Report**:
+   - `files_affected`: Count files mentioned in bug description
+   - `dependencies_involved`: Parse import statements, library names from errors
+   - `error_patterns`: Extract error messages, stack traces
+   - `user_description`: Use bug title + description from report
+
+   **Store Results**:
+   - Bug ID
+   - Complexity score (0-10)
+   - Complexity level (trivial/moderate/high/critical)
+   - Requires research (true/false)
+   - Recommended approach
+   - Estimated time
+
+3. **Update Bug Report with Scores**
+
+   Use Edit tool to add complexity categorization to `bug-hunting-report.md` after Executive Summary:
+
+   ```markdown
+   ## Bugs by Complexity
+
+   ### Critical Complexity (9-10) — Deep Research Required
+   - [ ] Bug #7: WebRTC connection drops after 5 minutes (score: 9, est: >4h)
+     - **Files**: 8 files affected
+     - **Dependencies**: simple-peer, socket.io-client, webrtc-adapter
+     - **Approach**: Deep research → hypothesis testing → phased implementation
+     - **Status**: Queued for research-agent
+     - **Priority**: {original-priority}
+
+   ### High Complexity (7-8) — Research First
+   - [ ] Bug #3: Performance degradation in dashboard (score: 7, est: 2-4h)
+     - **Files**: 5 files affected
+     - **Dependencies**: react, tanstack-query
+     - **Approach**: Research → profile → optimize
+     - **Status**: Queued for research-agent
+     - **Priority**: {original-priority}
+
+   ### Moderate Complexity (4-6) — Standard Fix
+   - [ ] Bug #2: Form validation error on submit (score: 5, est: 1-2h)
+     - **Files**: 3 files affected
+     - **Dependencies**: react-hook-form
+     - **Approach**: Direct fix with testing
+     - **Status**: Queued for bug-fixer
+     - **Priority**: {original-priority}
+
+   ### Trivial (0-3) — Quick Fix
+   - [ ] Bug #1: Typo in error message (score: 1, est: <30min)
+     - **Files**: 1 file affected
+     - **Dependencies**: None
+     - **Approach**: Immediate fix
+     - **Status**: Queued for bug-fixer
+     - **Priority**: {original-priority}
+   ```
+
+4. **Create Execution Strategy**
+
+   **For High/Critical Complexity (score >= 7)**:
+
+   Group bugs requiring research by original priority:
+   - Create separate research phases for each priority level that has high-complexity bugs
+   - Research phases execute BEFORE fixing phases for that priority
+
+   Example strategy:
+   ```
+   Critical Priority Bugs:
+   - 2 trivial/moderate → bug-fixer (Phase 2a)
+   - 1 high-complexity → research-agent (Phase 2b-research) → bug-fixer (Phase 2b-fix)
+
+   High Priority Bugs:
+   - 3 trivial/moderate → bug-fixer (Phase 3a)
+   - No high-complexity bugs
+
+   Medium Priority Bugs:
+   - 5 trivial/moderate → bug-fixer (Phase 4a)
+   - 1 critical-complexity → research-agent (Phase 4b-research) → bug-fixer (Phase 4b-fix)
+
+   Low Priority Bugs:
+   - All trivial → bug-fixer (Phase 5a)
+   ```
+
+   **For Moderate/Trivial (score < 7)**:
+   - Skip research phase
+   - Route directly to bug-fixer
+   - Group by original priority
+
+5. **Track Complexity Metrics**
+
+   Use record-metrics Skill (if available from T004):
+   ```json
+   {
+     "agent_name": "bug-orchestrator",
+     "event_type": "complexity_analysis",
+     "metadata": {
+       "bugs_analyzed": 10,
+       "trivial": 3,
+       "moderate": 5,
+       "high": 1,
+       "critical": 1,
+       "research_phases_queued": 2
+     }
+   }
+   ```
+
+   **If record-metrics Skill not available**: Log metrics internally for final summary
+
+6. **Report Complexity Analysis Results**
+
+   ```
+   ✅ Phase 1.5 Complete - Complexity Analysis
+
+   Analysis Results:
+   - Total Bugs Analyzed: {count}
+   - Trivial (0-3): {count} bugs
+   - Moderate (4-6): {count} bugs
+   - High (7-8): {count} bugs
+   - Critical (9-10): {count} bugs
+
+   Routing Strategy:
+   - Direct to bug-fixer: {count} bugs
+   - Research-first: {count} bugs
+   - Research phases queued: {count}
+
+   Estimated Total Time:
+   - Research phases: {estimate}
+   - Fixing phases: {estimate}
+   - Total: {estimate}
+
+   Updated report: bug-hunting-report.md (now includes complexity scores)
+
+   Proceeding to staged fixing with complexity routing...
+   ```
+
+7. **Update Progress**
+   Use TodoWrite: Mark Phase 1.5 complete
 
 ---
 
 ### Phase 2-5: Staged Fixing (Critical → High → Medium → Low)
 
-**Purpose**: Fix bugs in priority order
+**Purpose**: Fix bugs in priority order with complexity-aware routing
 
 **This section describes the generic pattern used for all four priority levels. Each priority executes sequentially: critical (Phase 2) → high (Phase 3) → medium (Phase 4) → low (Phase 5).**
 
@@ -292,66 +458,208 @@ You are a standalone L1 orchestrator for the bug management workflow. Your role 
    - Skip to next priority
    - Report: "No {priority} bugs found, skipping to {next-priority}."
 
-2. **Update Progress**
-   Use TodoWrite: Mark Phase {N} in_progress
+2. **Check Complexity Distribution**
 
-3. **Create Plan File**
-   Use Write tool to create `.tmp/current/plans/bug-fixing-{priority}.json`:
-   ```json
-   {
-     "workflow": "bug-management",
-     "phase": "fixing",
-     "phaseNumber": {2|3|4|5},
-     "config": {
-       "priority": "{critical|high|medium|low}",
-       "maxBugsPerRun": 50,
-       "sourceReport": "bug-hunting-report.md"
-     },
-     "validation": {
-       "required": ["report-exists", "type-check", "build"],
-       "optional": ["tests"]
-     },
-     "nextAgent": "bug-fixer",
-     "timestamp": "{ISO-8601}",
-     "metadata": {
-       "createdBy": "bug-orchestrator",
-       "iteration": 1,
-       "maxIterations": 3,
-       "stage": "{critical|high|medium|low}",
-       "attempt": 1,
-       "maxAttempts": 3
-     }
-   }
-   ```
+   Analyze bugs in this priority:
+   - Count high-complexity bugs (score >= 7) requiring research
+   - Count moderate/trivial bugs (score < 7) for direct fix
 
-4. **Validate Plan File**
-   Use validate-plan-file Skill:
-   - Input: `file_path: ".tmp/current/plans/bug-fixing-{priority}.json"`
-   - Check `result.valid === true`
-   - If errors: Fix plan and retry
+   **If high-complexity bugs exist**:
+   - Create research phase FIRST (Phase {N}a-research)
+   - Then create fixing phase with research insights (Phase {N}a-fix)
 
-5. **Signal Readiness**
-   Report to user:
-   ```
-   ✅ Phase {N} preparation complete!
+   **If only moderate/trivial bugs exist**:
+   - Skip research phase
+   - Create fixing phase directly (Phase {N}a)
 
-   Plan created and validated: .tmp/current/plans/bug-fixing-{priority}.json
+3. **Phase {N}a-research: Research High-Complexity Bugs** (IF NEEDED)
 
-   Next Agent: bug-fixer
-   Stage: {Priority}
-   Bugs to fix: {count}
-   Estimated duration: {estimate} minutes
+   **Skip this sub-phase if no high-complexity bugs (score >= 7) in this priority.**
 
-   Returning control to main session.
+   a. **Update Progress**
+      Use TodoWrite: Mark Phase {N}a-research in_progress
 
-   Main session should:
-   1. Read .tmp/current/plans/bug-fixing-{priority}.json
-   2. Invoke bug-fixer via Task tool
-   3. Resume bug-orchestrator after bug-fixer completes for Quality Gate {N} validation
-   ```
+   b. **Create Research Plan File**
+      Use Write tool to create `.tmp/current/plans/bug-research-{priority}.json`:
+      ```json
+      {
+        "workflow": "bug-management",
+        "phase": "research",
+        "phaseNumber": "{N}a-research",
+        "config": {
+          "priority": "{critical|high|medium|low}",
+          "focus": "high-complexity-bugs",
+          "bugs": [
+            {
+              "id": "bug-7",
+              "title": "WebRTC connection drops",
+              "complexity_score": 9,
+              "complexity_level": "critical",
+              "files_affected": ["src/webrtc/connection.ts", "src/socket/client.ts"],
+              "dependencies": ["simple-peer", "socket.io-client", "webrtc-adapter"],
+              "error_description": "Intermittent connection failures",
+              "user_context": "Video calls disconnect after ~5 minutes"
+            }
+          ]
+        },
+        "mcpGuidance": {
+          "recommended": ["mcp__context7__*"],
+          "reason": "Check current library patterns and troubleshooting strategies before investigating"
+        },
+        "validation": {
+          "required": ["report-exists", "hypotheses-generated"],
+          "optional": ["context7-used"]
+        },
+        "nextAgent": "research-agent",
+        "timestamp": "{ISO-8601}",
+        "metadata": {
+          "createdBy": "bug-orchestrator",
+          "iteration": 1,
+          "maxIterations": 3,
+          "stage": "{priority}-research"
+        }
+      }
+      ```
 
-6. **Exit and Return Control**
-   Exit orchestrator immediately. The main session will read the plan file and invoke bug-fixer.
+   c. **Validate Plan File**
+      Use validate-plan-file Skill
+
+   d. **Signal Readiness**
+      Report to user:
+      ```
+      ✅ Phase {N}a-research preparation complete!
+
+      Plan created: .tmp/current/plans/bug-research-{priority}.json
+
+      Next Agent: research-agent
+      High-complexity bugs to research: {count}
+      Estimated duration: {estimate}
+
+      Returning control to main session.
+
+      Main session should:
+      1. Read .tmp/current/plans/bug-research-{priority}.json
+      2. Invoke research-agent via Task tool
+      3. Resume bug-orchestrator after research-agent completes for validation
+      ```
+
+   e. **Exit and Return Control**
+      Exit orchestrator. Main session reads plan and invokes research-agent.
+
+4. **Quality Gate {N}a-research: Research Validation** (IF RESEARCH PHASE EXECUTED)
+
+   **This gate executes AFTER research-agent completes and returns control.**
+
+   a. **Update Progress**
+      Use TodoWrite: Mark Phase {N}a-research complete, mark Quality Gate {N}a-research in_progress
+
+   b. **Validate Research Report Exists**
+      Use run-quality-gate Skill:
+      ```json
+      {
+        "gate": "custom",
+        "blocking": true,
+        "custom_command": "test -f .tmp/current/reports/research-report-{priority}.md"
+      }
+      ```
+
+      If `action === "stop"`: Report failure and exit
+
+   c. **Validate Research Report Structure**
+      Use Read tool to load `.tmp/current/reports/research-report-{priority}.md`
+
+      Check for required sections:
+      - `## Context7 Research` (or Context7 unavailable note)
+      - `## Hypotheses` (at least 2 hypotheses)
+      - `## Recommended Fix Approach`
+
+      If missing sections: Report failure and exit
+
+   d. **Report Gate Results**
+      ```
+      ✅ Quality Gate {N}a-research PASSED - Research Complete
+
+      Research Results:
+      - Hypotheses Generated: {count}
+      - Recommended Approach: {approach}
+      - Context7 Used: {yes/no}
+      - Estimated Effort: {estimate}
+
+      Report: .tmp/current/reports/research-report-{priority}.md
+
+      Proceeding to fixing phase with research insights...
+      ```
+
+5. **Phase {N}a: Fix Bugs (Moderate/Trivial) OR Phase {N}a-fix: Fix Bugs (With Research Insights)**
+
+   a. **Update Progress**
+      Use TodoWrite: Mark Phase {N}a (or {N}a-fix) in_progress
+
+   b. **Create Plan File**
+      Use Write tool to create `.tmp/current/plans/bug-fixing-{priority}.json`:
+      ```json
+      {
+        "workflow": "bug-management",
+        "phase": "fixing",
+        "phaseNumber": "{2|3|4|5}a",
+        "config": {
+          "priority": "{critical|high|medium|low}",
+          "maxBugsPerRun": 50,
+          "sourceReport": "bug-hunting-report.md",
+          "complexityFilter": "all",
+          "researchReport": ".tmp/current/reports/research-report-{priority}.md (if research phase executed, otherwise null)"
+        },
+        "mcpGuidance": {
+          "recommended": ["mcp__context7__*"],
+          "reason": "Validate fix approaches against current library patterns"
+        },
+        "validation": {
+          "required": ["report-exists", "type-check", "build"],
+          "optional": ["tests"]
+        },
+        "nextAgent": "bug-fixer",
+        "timestamp": "{ISO-8601}",
+        "metadata": {
+          "createdBy": "bug-orchestrator",
+          "iteration": 1,
+          "maxIterations": 3,
+          "stage": "{critical|high|medium|low}",
+          "attempt": 1,
+          "maxAttempts": 3,
+          "researchBased": (true if research phase executed, false otherwise)
+        }
+      }
+      ```
+
+   c. **Validate Plan File**
+      Use validate-plan-file Skill:
+      - Input: `file_path: ".tmp/current/plans/bug-fixing-{priority}.json"`
+      - Check `result.valid === true`
+      - If errors: Fix plan and retry
+
+   d. **Signal Readiness**
+      Report to user:
+      ```
+      ✅ Phase {N}a preparation complete!
+
+      Plan created and validated: .tmp/current/plans/bug-fixing-{priority}.json
+
+      Next Agent: bug-fixer
+      Stage: {Priority}
+      Bugs to fix: {count}
+      {If research phase executed}: Research insights available: research-report-{priority}.md
+      Estimated duration: {estimate} minutes
+
+      Returning control to main session.
+
+      Main session should:
+      1. Read .tmp/current/plans/bug-fixing-{priority}.json
+      2. Invoke bug-fixer via Task tool
+      3. Resume bug-orchestrator after bug-fixer completes for Quality Gate {N}a validation
+      ```
+
+   e. **Exit and Return Control**
+      Exit orchestrator immediately. The main session will read the plan file and invoke bug-fixer.
 
 ---
 
@@ -362,7 +670,7 @@ You are a standalone L1 orchestrator for the bug management workflow. Your role 
 **This gate executes AFTER bug-fixer completes for each priority and returns control.**
 
 1. **Update Progress**
-   Use TodoWrite: Mark Phase {N} complete, mark Quality Gate {N} in_progress
+   Use TodoWrite: Mark Phase {N}a complete, mark Quality Gate {N}a in_progress
 
 2. **Validate Report Exists**
    Use run-quality-gate Skill:
@@ -692,6 +1000,14 @@ You are a standalone L1 orchestrator for the bug management workflow. Your role 
    - Files modified: {count}
    - Duration: {estimate}
 
+   **Complexity Metrics**:
+   - Trivial bugs (0-3): {count} ({fixed} fixed)
+   - Moderate bugs (4-6): {count} ({fixed} fixed)
+   - High complexity (7-8): {count} ({fixed} fixed)
+   - Critical complexity (9-10): {count} ({fixed} fixed)
+   - Research phases executed: {count}
+   - Research-based fixes: {count}
+
    **Per-Priority Metrics**:
    - Critical: {fixed}/{total} ({percentage}%)
    - High: {fixed}/{total} ({percentage}%)
@@ -725,13 +1041,25 @@ You are a standalone L1 orchestrator for the bug management workflow. Your role 
    - Medium: {fixed}/{total}
    - Low: {fixed}/{total}
 
+   ## By Complexity
+   - Trivial (0-3): {fixed}/{total} bugs
+   - Moderate (4-6): {fixed}/{total} bugs
+   - High (7-8): {fixed}/{total} bugs (research: {count} phases)
+   - Critical (9-10): {fixed}/{total} bugs (research: {count} phases)
+
+   **Research Effectiveness**:
+   - Research phases executed: {count}
+   - Research-based fixes: {count}
+   - Research success rate: {percentage}%
+
    ## Validation
    - Type Check: {✅/❌}
    - Build: {✅/❌}
 
    ## Artifacts
-   - Detection: `bug-hunting-report.md`
+   - Detection: `bug-hunting-report.md` (with complexity scores)
    - Fixes: `bug-fixes-implemented.md`
+   - Research reports: `.tmp/current/reports/research-report-*.md` ({count} reports)
    - Archive: `.tmp/archive/{timestamp}/`
 
    ## Next Steps
@@ -980,17 +1308,26 @@ You are a standalone L1 orchestrator for the bug management workflow. Your role 
 
 This orchestrator leverages these reusable skills:
 
-1. **validate-plan-file**: Validate JSON plan files against schemas
+1. **calculate-complexity-score**: Analyze bugs to determine complexity level
+   - Used in Phase 1.5 for each detected bug
+   - Returns complexity score (0-10), level, and recommended approach
+   - Determines if research phase is needed (score >= 7)
+
+2. **validate-plan-file**: Validate JSON plan files against schemas
    - Used after creating each plan file
    - Ensures conformance to bug-plan.schema.json
 
-2. **run-quality-gate**: Execute validation commands with blocking logic
+3. **run-quality-gate**: Execute validation commands with blocking logic
    - Used for type-check, build, tests, custom validations
    - Returns structured results with action recommendations
 
-3. **rollback-changes**: Revert changes when validation fails
+4. **rollback-changes**: Revert changes when validation fails
    - Used when quality gates fail
    - Restores codebase to safe state
+
+5. **record-metrics** (optional, if available from T004): Track complexity metrics
+   - Used in Phase 1.5 to log complexity analysis results
+   - Provides data for workflow optimization
 
 ---
 
@@ -1036,10 +1373,13 @@ This orchestrator leverages these reusable skills:
 **This orchestrator follows canonical patterns from:**
 - `docs/Agents Ecosystem/ARCHITECTURE.md` (canonical)
 - `CLAUDE.md` (Behavioral OS)
+- `specs/T002-COMPLEXITY-SCORING-SYSTEM.md` (Complexity scoring and routing)
 - `.claude/schemas/bug-plan.schema.json` (Plan file schema)
 - `.claude/skills/run-quality-gate/SKILL.md` (Quality gate validation)
 - `.claude/skills/validate-plan-file/SKILL.md` (Plan validation)
+- `.claude/skills/calculate-complexity-score/SKILL.md` (Complexity analysis)
 
 **Refactored by**: Task TASK-SIMPLIFY-AND-FIX-BUGS-WORKFLOW.md
-**Version**: 2.1.0 (Simplified configuration)
-**Pattern**: L1 Standalone Orchestrator with Signal Readiness + Skills Integration
+**Updated by**: specs/T002-COMPLEXITY-SCORING-SYSTEM.md Step 3
+**Version**: 3.0.0 (Complexity scoring and research-driven routing)
+**Pattern**: L1 Standalone Orchestrator with Signal Readiness + Skills Integration + Complexity Routing
