@@ -15,7 +15,9 @@
   ],
   "scripts": {
     "test": "node bin/cli.js -y --dir .tmp/test --mcp minimal",
-    "prepublishOnly": "pnpm test"
+    "prepublishOnly": "pnpm test",
+    "sync:agents": "./scripts/sync-local-agents.sh",
+    "postinstall": "./scripts/sync-local-agents.sh"
   },
   "keywords": [
     "claude",
