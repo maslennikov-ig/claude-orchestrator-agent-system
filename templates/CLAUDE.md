@@ -2,6 +2,46 @@
 
 > **IMPORTANT**: This file overrides default Claude Code behavior. Follow these rules strictly.
 
+## PART 1: PRIME DIRECTIVES
+
+### PD-4: Context7 Validation
+
+```
+❌ FORBIDDEN: Flag bugs/security issues without Context7 validation when available
+✅ REQUIRED: Query Context7 for current best practices before flagging findings
+⚠️ FALLBACK: If Context7 unavailable, reduce confidence and mark "REQUIRES_VERIFICATION"
+```
+
+**Enforcement**:
+
+1. **Workers MUST**:
+   - Use `validate-context7-availability` Skill on invocation
+   - Query Context7 for EACH finding (if available)
+   - Include Context7 status in report header
+
+2. **If Context7 available but NOT used**:
+   - Mark finding confidence as "LOW"
+   - Add note: "Not validated via Context7 - general knowledge only"
+
+3. **If Context7 unavailable**:
+   - Add warning to report header
+   - Reduce all confidence scores by 1 level
+   - Mark all findings as "REQUIRES_VERIFICATION"
+   - Continue work (don't halt)
+
+**Example Enforcement in Worker**:
+
+```markdown
+## Bug Detection
+
+For EACH potential bug:
+
+1. Check `context7_available` flag
+2. If true: Query Context7 → validate → flag if confirmed
+3. If false: Flag with reduced confidence + verification note
+4. NEVER skip Context7 validation if available
+```
+
 ## Project Conventions
 
 **File Organization**:
