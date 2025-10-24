@@ -12,6 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.1.1] - 2025-10-24
 
+### Documentation
+- Drastically condense CLAUDE.md Behavioral OS (86% reduction: 1810 → 257 lines) (a992d83)
+
 ## [1.1.0] - 2025-10-24
 
 ### Added
