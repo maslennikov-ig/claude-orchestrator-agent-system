@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.2] - 2025-10-24
+
+### Fixed
+- **sync**: Add scripts/ synchronization to sync-local-agents.sh (d5bedf8)
+
 ## [1.2.1] - 2025-10-24
 
 ### Documentation
