@@ -70,16 +70,9 @@ if [ -d "$PROJECT_ROOT/templates/docs" ]; then
     echo "   ✅ Готово"
 fi
 
-# Синхронизируем CLAUDE.md
-echo ""
-echo "--- CLAUDE.md ---"
-if [ -f "$PROJECT_ROOT/templates/CLAUDE.md" ]; then
-    cp "$PROJECT_ROOT/templates/CLAUDE.md" "$PROJECT_ROOT/CLAUDE.md"
-    echo "📄 Копирование CLAUDE.md"
-    echo "   ✅ Готово"
-else
-    echo "⚠️  CLAUDE.md не найден в templates/"
-fi
+# NOTE: НЕ синхронизируем CLAUDE.md из templates/
+# Корневой CLAUDE.md - это отдельный файл для разработки генератора
+# templates/CLAUDE.md - это Behavioral OS для агентов (копируется в проекты пользователей)
 
 echo ""
 echo "=== ✅ Синхронизация завершена! ==="
@@ -89,7 +82,6 @@ echo "  ✅ Навыки → .claude/skills/"
 echo "  ✅ Агенты → .claude/agents/"
 echo "  ✅ Команды → .claude/commands/"
 echo "  ✅ Документация → docs/"
-echo "  ✅ CLAUDE.md"
 echo ""
 echo "Новые файлы из T001-T002:"
 echo "  ✅ .claude/skills/validate-context7-availability/"
