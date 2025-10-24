@@ -18,3 +18,16 @@ package.json.bak
 
 # Test output
 .tmp/
+
+# Local development copies (auto-synced from templates/)
+# These are working copies for development, NOT source of truth
+/.claude/
+/docs/
+/CLAUDE.md
+/.mcp.json
+/.mcp.full.json
+
+# Internal development files
+/specs/
+/IMPLEMENTATION-LOG.md
+/HANDOFF-PROMPT.md
