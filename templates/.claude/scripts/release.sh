@@ -34,6 +34,7 @@ declare -a BREAKING_CHANGES=()
 declare -a REFACTORS=()
 declare -a PERF=()
 declare -a DOCS=()
+declare -a SECURITY=()
 declare -a OTHER_CHANGES=()
 
 # === UTILITY FUNCTIONS ===
@@ -177,6 +178,7 @@ parse_commits() {
     local refactor_pattern='^refactor(\([^)]+\))?:'
     local perf_pattern='^perf(\([^)]+\))?:'
     local docs_pattern='^docs(\([^)]+\))?:'
+    local security_pattern='^security(\([^)]+\))?:'
 
     for commit in "${ALL_COMMITS[@]}"; do
         local hash=$(echo "$commit" | awk '{print $1}')
@@ -185,6 +187,9 @@ parse_commits() {
         # Check for breaking changes
         if [[ "$message" =~ $breaking_pattern ]] || echo "$message" | grep -q "BREAKING CHANGE:"; then
             BREAKING_CHANGES+=("$commit")
+        # Check for security (highest priority after breaking)
+        elif [[ "$message" =~ $security_pattern ]]; then
+            SECURITY+=("$commit")
         # Check for features
         elif [[ "$message" =~ $feat_pattern ]]; then
             FEATURES+=("$commit")
@@ -209,6 +214,7 @@ parse_commits() {
     # Display commit summary
     log_info "Commit summary:"
     [ ${#BREAKING_CHANGES[@]} -gt 0 ] && echo "  🔥 ${#BREAKING_CHANGES[@]} breaking changes"
+    [ ${#SECURITY[@]} -gt 0 ] && echo "  🔒 ${#SECURITY[@]} security fixes"
     [ ${#FEATURES[@]} -gt 0 ] && echo "  ✨ ${#FEATURES[@]} features"
     [ ${#FIXES[@]} -gt 0 ] && echo "  🐛 ${#FIXES[@]} bug fixes"
     [ ${#REFACTORS[@]} -gt 0 ] && echo "  ♻️  ${#REFACTORS[@]} refactors"
@@ -282,6 +288,45 @@ calculate_new_version() {
     NEW_VERSION="$major.$minor.$patch"
 }
 
+# === VERSION EXISTENCE CHECK ===
+
+check_version_exists() {
+    local version="$1"
+
+    # Check if tag already exists locally
+    if git tag -l "v$version" | grep -q "v$version"; then
+        log_error "Version v$version already exists locally!"
+        echo ""
+        echo "Existing tags:"
+        git tag -l "v$version*" | head -5
+        echo ""
+        echo "This violates Semantic Versioning immutability requirement."
+        echo "Released versions cannot be modified."
+        echo ""
+        echo "Solutions:"
+        echo "  1. If this is a mistake, delete the tag:"
+        echo "     git tag -d v$version"
+        echo "     git push origin :refs/tags/v$version"
+        echo ""
+        echo "  2. Create a new patch release instead:"
+        echo "     (Script will auto-increment to next available version)"
+        exit 1
+    fi
+
+    # Check if tag exists on remote
+    if git ls-remote --tags origin | grep -q "refs/tags/v$version"; then
+        log_error "Version v$version already published to remote!"
+        echo ""
+        echo "This violates Semantic Versioning immutability requirement."
+        echo "Released versions cannot be modified."
+        echo ""
+        echo "You must create a new version instead."
+        exit 1
+    fi
+
+    log_success "Version v$version is available"
+}
+
 # === CHANGELOG GENERATION ===
 
 generate_changelog_entry() {
@@ -292,6 +337,15 @@ generate_changelog_entry() {
 ## [$version] - $date
 
 EOF
+
+    # Security section (most important, goes first)
+    if [ ${#SECURITY[@]} -gt 0 ]; then
+        echo "### Security"
+        for commit in "${SECURITY[@]}"; do
+            format_changelog_line "$commit"
+        done
+        echo ""
+    fi
 
     # Added section (features)
     if [ ${#FEATURES[@]} -gt 0 ]; then
@@ -435,9 +489,11 @@ update_changelog() {
                 echo "$existing_content" | tail -n +$((unreleased_line + 1))
             } > "$changelog_file"
         else
-            # No [Unreleased] section, insert at the beginning after header
+            # No [Unreleased] section, create it and insert at the beginning after header
             {
                 echo "$existing_content" | head -n 6
+                echo ""
+                echo "## [Unreleased]"
                 echo ""
                 echo "$new_entry"
                 echo "$existing_content" | tail -n +7
@@ -478,6 +534,7 @@ show_preview() {
 EOF
 
     [ ${#BREAKING_CHANGES[@]} -gt 0 ] && echo "   🔥 ${#BREAKING_CHANGES[@]} breaking changes"
+    [ ${#SECURITY[@]} -gt 0 ] && echo "   🔒 ${#SECURITY[@]} security fixes"
     [ ${#FEATURES[@]} -gt 0 ] && echo "   ✨ ${#FEATURES[@]} features"
     [ ${#FIXES[@]} -gt 0 ] && echo "   🐛 ${#FIXES[@]} bug fixes"
     [ ${#REFACTORS[@]} -gt 0 ] && echo "   ♻️  ${#REFACTORS[@]} refactors"
@@ -647,6 +704,7 @@ main() {
     parse_commits
     detect_version_bump "$bump_arg"
     calculate_new_version
+    check_version_exists "$NEW_VERSION"
 
     # Show preview
     show_preview
