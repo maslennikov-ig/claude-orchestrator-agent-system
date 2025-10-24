@@ -33,6 +33,7 @@ declare -a FIXES=()
 declare -a BREAKING_CHANGES=()
 declare -a REFACTORS=()
 declare -a PERF=()
+declare -a DOCS=()
 declare -a OTHER_CHANGES=()
 
 # === UTILITY FUNCTIONS ===
@@ -175,6 +176,7 @@ parse_commits() {
     local fix_pattern='^fix(\([^)]+\))?:'
     local refactor_pattern='^refactor(\([^)]+\))?:'
     local perf_pattern='^perf(\([^)]+\))?:'
+    local docs_pattern='^docs(\([^)]+\))?:'
 
     for commit in "${ALL_COMMITS[@]}"; do
         local hash=$(echo "$commit" | awk '{print $1}')
@@ -195,6 +197,9 @@ parse_commits() {
         # Check for performance improvements
         elif [[ "$message" =~ $perf_pattern ]]; then
             PERF+=("$commit")
+        # Check for documentation
+        elif [[ "$message" =~ $docs_pattern ]]; then
+            DOCS+=("$commit")
         # Everything else
         else
             OTHER_CHANGES+=("$commit")
@@ -208,6 +213,7 @@ parse_commits() {
     [ ${#FIXES[@]} -gt 0 ] && echo "  🐛 ${#FIXES[@]} bug fixes"
     [ ${#REFACTORS[@]} -gt 0 ] && echo "  ♻️  ${#REFACTORS[@]} refactors"
     [ ${#PERF[@]} -gt 0 ] && echo "  ⚡ ${#PERF[@]} performance improvements"
+    [ ${#DOCS[@]} -gt 0 ] && echo "  📚 ${#DOCS[@]} documentation updates"
     [ ${#OTHER_CHANGES[@]} -gt 0 ] && echo "  📝 ${#OTHER_CHANGES[@]} other changes"
     echo ""
 }
@@ -315,6 +321,15 @@ EOF
     if [ ${#FIXES[@]} -gt 0 ]; then
         echo "### Fixed"
         for commit in "${FIXES[@]}"; do
+            format_changelog_line "$commit"
+        done
+        echo ""
+    fi
+
+    # Documentation section
+    if [ ${#DOCS[@]} -gt 0 ]; then
+        echo "### Documentation"
+        for commit in "${DOCS[@]}"; do
             format_changelog_line "$commit"
         done
         echo ""
@@ -467,6 +482,7 @@ EOF
     [ ${#FIXES[@]} -gt 0 ] && echo "   🐛 ${#FIXES[@]} bug fixes"
     [ ${#REFACTORS[@]} -gt 0 ] && echo "   ♻️  ${#REFACTORS[@]} refactors"
     [ ${#PERF[@]} -gt 0 ] && echo "   ⚡ ${#PERF[@]} performance improvements"
+    [ ${#DOCS[@]} -gt 0 ] && echo "   📚 ${#DOCS[@]} documentation updates"
     [ ${#OTHER_CHANGES[@]} -gt 0 ] && echo "   📝 ${#OTHER_CHANGES[@]} other changes"
 
     cat << EOF
