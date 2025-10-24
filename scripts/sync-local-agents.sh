@@ -60,6 +60,14 @@ sync_contents \
     "$PROJECT_ROOT/.claude/commands" \
     "Commands"
 
+# Синхронизируем скрипты
+echo ""
+echo "--- Скрипты ---"
+sync_contents \
+    "$PROJECT_ROOT/templates/.claude/scripts" \
+    "$PROJECT_ROOT/.claude/scripts" \
+    "Scripts"
+
 # Синхронизируем документацию
 echo ""
 echo "--- Документация ---"
@@ -81,15 +89,7 @@ echo "Что синхронизировано:"
 echo "  ✅ Навыки → .claude/skills/"
 echo "  ✅ Агенты → .claude/agents/"
 echo "  ✅ Команды → .claude/commands/"
+echo "  ✅ Скрипты → .claude/scripts/"
 echo "  ✅ Документация → docs/"
 echo ""
-echo "Новые файлы из T001-T002:"
-echo "  ✅ .claude/skills/validate-context7-availability/"
-echo "  ✅ .claude/skills/calculate-complexity-score/"
-echo "  ✅ .claude/agents/health/workers/research-agent.md"
-echo "  ✅ .claude/agents/health/workers/bug-hunter.md (updated)"
-echo "  ✅ .claude/agents/health/workers/security-scanner.md (updated)"
-echo "  ✅ .claude/agents/health/workers/dependency-auditor.md (updated)"
-echo "  ✅ docs/Agents Ecosystem/CONTEXT7-INTEGRATION-GUIDE.md"
-echo ""
-echo "Теперь текущий проект использует улучшенные агенты!"
+echo "Теперь текущий проект использует улучшенные агенты из templates/!"
